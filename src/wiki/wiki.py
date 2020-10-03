@@ -13,6 +13,8 @@ aiopwb = aioify(obj=pywikibot, name='aiopwb')
 
 site = None
 
+WIKI_SITE_URL = "https://scioly.org/wiki/index.php/Main_Page"
+
 async def initWiki():
     """Initializes the wiki function."""
     with open("password.py", "w+") as f:
@@ -49,14 +51,14 @@ async def implementCommand(action, pageTitle):
     except Exception as e:
         pass
 
-    if action == "link": 
+    if action == "link":
         text = page.text
         if len(text) < 1:
             # If page does not exist, return False
             return False
         # If page does exist, return URL
         return await page.full_url()
-    
+
     if action == "summary":
         text = page.text
         if len(text) < 1:

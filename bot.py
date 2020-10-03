@@ -22,7 +22,7 @@ from src.sheets.sheets import sendVariables, getVariables
 from src.forums.forums import openBrowser
 from src.wiki.stylist import prettifyTemplates
 from src.wiki.tournaments import getTournamentList
-from src.wiki.wiki import implementCommand
+from src.wiki.wiki import implementCommand, WIKI_SITE_URL
 from src.wiki.schools import getSchoolListing
 from src.wiki.mosteditstable import runTable
 from info import getAbout
@@ -1177,7 +1177,7 @@ async def wiki(ctx, command, *args):
     multiple = False
     for arg in args:
         if arg[:1] == "-":
-            multiple = arg.lower() == "-multiple"
+            multiple = arg.lower() == "-multiple" # arg.lower() in ["--multiple", "-m"]
     if command in ["link", "url"]:
         if multiple:
             for arg in [arg for arg in args if arg[:1] != "-"]:
@@ -1185,13 +1185,17 @@ async def wiki(ctx, command, *args):
                 if url == False:
                     await ctx.send(f"The `{arg}` page does not exist!")
                 await ctx.send(f"<{url}>")
-        else:
+        elif args:
             stringSum = " ".join([arg for arg in args if arg[:1] != "-"])
             url = await implementCommand("link", stringSum)
             if url == False:
                 await ctx.send(f"The `{arg}` page does not exist!")
             else:
                 await ctx.send(f"<{url}>")
+        else:
+            url = WIKI_SITE_URL
+            await ctx.send(f"<{url}>")
+
     if command in ["summary"]:
         if multiple:
             for arg in [arg for arg in args if arg[:1] != "-"]:
