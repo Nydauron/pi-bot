@@ -4,7 +4,7 @@ from src.discord.cron.action import CronAction
 from typing import Dict, Tuple, Optional
 from bot import PiBot
 from src.mongo import mongo
-from beanie import Document, init_beanie
+from beanie import Document
 
 class TaskAlreadyScheduledError(Exception):
     pass
@@ -70,7 +70,7 @@ class CronManager():
     async def add_task_no_db(self, bot: PiBot, job: CronJob) -> Tuple[int, bool]:
         '''
         (id, ok): Tuple[int, bool]
-        id == human indetifiable id (NOT mongo id)
+        id == human indentifiable id
         ok == True == task was written to database successfully, ok == False == task was not written successfully
 
         if ok == False, id should be ignored
@@ -95,7 +95,7 @@ class CronManager():
     async def add_task(self, bot: PiBot, job: CronJob) -> Tuple[int, bool]:
         '''
         (id, ok): Tuple[int, bool]
-        id == human indetifiable id (NOT mongo id)
+        id == human indentifiable id (NOT mongo id)
         ok == True == task was written to database successfully, ok == False == task was not written successfully
 
         if ok == False, id should be ignored
@@ -133,9 +133,10 @@ class CronManager():
             if t[1]:
                 self.schedule_job(bot, id)
 
-async def test():
+async def test_add():
     from src.discord.cron.action import MuteAction, UnmuteAction
     from bot import bot
+    from beanie import init_beanie
     
     manager = CronManager()
 
