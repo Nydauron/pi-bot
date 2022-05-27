@@ -16,6 +16,9 @@ async def setup():
         os.getenv("MONGO_URL"), tz_aware=True
     )
 
+# Use async with for transactions
+async def start_session():
+    return await client.start_session()
 
 async def delete(db_name, collection_name, iden):
     global client
