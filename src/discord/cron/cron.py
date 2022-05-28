@@ -130,7 +130,7 @@ class CronManager():
     # Should run every 30 days to circumvent asyncio.sleep restrictions
     def batch_schedule_jobs(self, bot: PiBot):
         for id, t in self.__tasks.items():
-            if t[1]:
+            if not t[1]:
                 self.schedule_job(bot, id)
 
 async def test_add():
