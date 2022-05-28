@@ -27,6 +27,7 @@ class CronManager():
     async def new(bot: PiBot):
         manager = CronManager()
         await manager.__init_read_db(bot)
+        return manager
 
     async def __init_read_db(self, bot: PiBot):
         crons = []
@@ -140,11 +141,11 @@ async def test_add():
     from src.discord.cron.action import MuteAction, UnmuteAction
     from bot import bot
     from beanie import init_beanie
-    
-    manager = CronManager.new()
 
     await mongo.setup()
     await init_beanie(database=mongo.client["data"], document_models=[CronJob])
+
+    manager = await CronManager.new(bot)
 
     c1 = MuteAction.new(user=169985743987408897, exec_at=SERVER_TZ.localize(datetime.now() + timedelta(seconds=60)))
     c2 = UnmuteAction.new(user=169985743987408897, exec_at=SERVER_TZ.localize(datetime.now() + timedelta(seconds=30)))
