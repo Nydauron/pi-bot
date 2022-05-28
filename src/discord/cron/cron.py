@@ -1,10 +1,13 @@
 import asyncio
 from datetime import datetime, timedelta
-from src.discord.cron.action import CronAction
+from src.discord.globals import SERVER_TZ
 from typing import Dict, Tuple, Optional
+
 from bot import PiBot
 from src.mongo import mongo
-from beanie import Document
+
+from typing import Any
+from src.discord.cron.action import CronJob, ACTION_BINDINGS
 
 class TaskAlreadyScheduledError(Exception):
     pass
@@ -12,53 +15,53 @@ class TaskAlreadyScheduledError(Exception):
 class TaskDelayTooLongError(Exception):
     pass
 
-class CronJob(Document):
-    job: CronAction
-    exec_at: datetime
-
-    class Settings:
-        name = "cron"
-
-    async def exec(self, bot: PiBot):
-        # When exec is called, we are assuming that self.exec_datetime - datetime.now() is <= 30 days
-
-        # Since there is an upper limit of 48 days for asyncio.sleep(), we need to find a way to circumvent this for larger wait times
-        # An easy solution might be to just poll once every 30 days to see if there are any upcoming jobs and schedule them
-
-        diff = self.exec_at - datetime.now()
-        while diff > timedelta():
-            await asyncio.sleep(diff.total_seconds())
-            diff = self.exec_at - datetime.now()
-
-        await self.exec_now(bot)
-
-    async def exec_now(self, bot: PiBot):
-        await self.job.exec(bot)
-
 class CronManager():
     __max_days_delay = 30
     __next_id = 1
-    __tasks: Dict[int, Tuple[CronJob, Optional[asyncio.Task]]]
+    __tasks: Dict[int, Tuple[CronJob, Optional[asyncio.Task]]] # [id (prob some counter that inc by 1 starting from 1 or somethin)] -> (CronJob, Optional[Task])
 
     def __init__(self):
-        self.__tasks: Dict[int, Tuple[CronJob, Optional[asyncio.Task]]] = {} # [id (prob some counter that inc by 1 starting from 1 or somethin)] -> (CronJob, Optional[Task])
-        pass
-    
+        self.__tasks = {}
+
+    @staticmethod
+    async def new(bot: PiBot):
+        manager = CronManager()
+        await manager.__init_read_db(bot)
+
+    async def __init_read_db(self, bot: PiBot):
+        crons = []
+        async with await mongo.start_session() as s:
+            async with s.start_transaction():
+                # Downside of this is that we need to make n database calls given n different types of actions in order for this to work
+                # This also needs to be within a transaction to ensure atomicity across all the reads
+                for action, cls in ACTION_BINDINGS.items():
+                    crons.extend(await CronJob.find(CronJob.action_type == action, session=s).project(cls).to_list())
+                s.commit_transaction()
+
+        crons.sort(key=lambda x: x.id)
+
+        tasks = {}
+        for i, c in enumerate(crons, start=1):
+            tasks[i] = (c, None)
+
+        self.__tasks, self.__next_id = tasks, len(crons) + 1
+        self.batch_schedule_jobs(bot)
+
     # spawns an async thread to handle
     def schedule_job(self, bot: PiBot, job_id: int):
         (job, t) = self.__tasks[job_id] # KeyError can be raised
         if t:
             raise TaskAlreadyScheduledError(f"Task id {job_id} has already been scheduled")
 
-        diff = job.exec_at - datetime.now()
+        diff = job.exec_at - SERVER_TZ.localize(datetime.now())
         if diff > timedelta(days=self.__max_days_delay):
             raise TaskDelayTooLongError(f"Task id {job_id} has a wait time longer than {self.__max_days_delay} days")
 
-        task = asyncio.create_task(job.exec(bot))
-        
+        task = asyncio.create_task(job.wait(bot))
+
         self.__tasks[job_id] = (job, task)
         asyncio.create_task(self.__cleanup_task(job_id, task))
-    
+
     async def __cleanup_task(self, job_id: int, task: asyncio.Task):
         await asyncio.wait({task})
 
@@ -100,7 +103,7 @@ class CronManager():
 
         if ok == False, id should be ignored
         '''
-        
+
         async with await mongo.start_session() as s:
             async with s.start_transaction():
                 try:
@@ -113,7 +116,7 @@ class CronManager():
                     return (0, False)
                 print(job)
                 tid, ok = await self.add_task_no_db(bot, job)
-                
+
                 if not ok:
                     # more logging stuff
                     s.abort_transaction()
@@ -138,13 +141,13 @@ async def test_add():
     from bot import bot
     from beanie import init_beanie
     
-    manager = CronManager()
+    manager = CronManager.new()
 
     await mongo.setup()
     await init_beanie(database=mongo.client["data"], document_models=[CronJob])
 
-    c1 = CronJob(job=MuteAction(169985743987408897), exec_at=datetime.now() + timedelta(seconds=2))
-    c2 = CronJob(job=UnmuteAction(169985743987408897), exec_at=datetime.now() + timedelta(seconds=4))
+    c1 = MuteAction.new(user=169985743987408897, exec_at=SERVER_TZ.localize(datetime.now() + timedelta(seconds=60)))
+    c2 = UnmuteAction.new(user=169985743987408897, exec_at=SERVER_TZ.localize(datetime.now() + timedelta(seconds=30)))
     
     tid1, ok = await manager.add_task(bot, c1)
     tid2, ok = await manager.add_task(bot, c2)
@@ -157,3 +160,15 @@ async def test_add():
     if ok:
         print(f"Cancelled task id {tid1}")
     await asyncio.sleep(9)
+
+async def test_add_from_db():
+    from src.discord.cron.action import MuteAction, UnmuteAction
+    from bot import bot
+    from beanie import init_beanie
+
+    await mongo.setup()
+    await init_beanie(database=mongo.client["data"], document_models=[CronJob])
+
+    manager = await CronManager.new(bot)
+
+    await asyncio.sleep(100)

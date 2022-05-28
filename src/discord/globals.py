@@ -1,5 +1,6 @@
 import datetime
 import os
+import pytz
 
 from dotenv import load_dotenv
 
@@ -16,6 +17,8 @@ if dev_mode:
 else:
     BOT_PREFIX = "!"
     SERVER_ID = 698306997287780363
+
+SERVER_TZ = pytz.timezone(os.getenv("TIMEZONE_LOCATION"))
 
 ##############
 # CONSTANTS
