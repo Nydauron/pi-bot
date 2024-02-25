@@ -2,6 +2,7 @@
 Serves as the initial file to launch the bot. Loads all needed extensions and maintains
 core functionality.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 import discord
+from beanie import init_beanie
 from discord import app_commands
 from discord.ext import commands
 from rich.logging import RichHandler
@@ -32,6 +34,7 @@ from src.discord.globals import (
     dev_mode,
 )
 from src.discord.reporter import Reporter
+from src.discord.sitestatusmodels import SiteStatusResult
 from src.mongo.mongo import MongoDatabase
 
 if TYPE_CHECKING:
@@ -162,6 +165,10 @@ class PiBot(commands.Bot):
         Called when the bot is being setup. Currently sets up a connection to the
         database and initializes all extensions.
         """
+        await init_beanie(
+            database=self.mongo_database.client["data"],
+            document_models=[SiteStatusResult],
+        )
         extensions = (
             "src.discord.censor",
             "src.discord.ping",
@@ -177,6 +184,7 @@ class PiBot(commands.Bot):
             "src.discord.funcommands",
             "src.discord.tasks",
             "src.discord.spam",
+            "src.discord.sitestatus",
             "src.discord.reporter",
             "src.discord.logger",
         )
