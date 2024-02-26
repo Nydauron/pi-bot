@@ -19,9 +19,9 @@ class SiteStatusResult(Document):
 class AggregateStatus(BaseModel):
     ping: float | None
     http: SiteHTTPResult | None
+    recordedAt: datetime
 
 
 class AggregateStatusList(BaseModel):
     domain: str = Field(None, alias="_id")
-    updatedAt: datetime
-    results: list[AggregateStatus | None]
+    results: list[AggregateStatus]
