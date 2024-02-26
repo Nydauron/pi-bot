@@ -161,10 +161,14 @@ class SiteStatus(commands.Cog, name="SiteStatus"):
         http_urls = alternateHTTPURLs.copy()
         http_urls.insert(0, f"https://{domain}")
 
-        http_tasks = [asyncio.create_task(self.check_http(url)) for url in http_urls]
+        HTTP_TIMEOUT = 20
+        http_tasks = [
+            asyncio.create_task(self.check_http(url, HTTP_TIMEOUT)) for url in http_urls
+        ]
         done, pending = await asyncio.wait(
             http_tasks,
             return_when=asyncio.FIRST_COMPLETED,
+            timeout=HTTP_TIMEOUT + 3,  # Allow async tasks to raise exceptions
         )
 
         for p in pending:
@@ -187,18 +191,15 @@ class SiteStatus(commands.Cog, name="SiteStatus"):
             http=http_result,
         )
 
-    async def check_http(self, url: str) -> SiteHTTPResult:
+    async def check_http(self, url: str, timeout: float) -> SiteHTTPResult:
         async with httpx.AsyncClient() as client:
             try:
-                http_res = await client.head(url, timeout=20)
+                http_res = await client.head(url, timeout=timeout)
                 logger.info(f"Received HTTP response from {url}")
                 return SiteHTTPResult(url=url, status_code=http_res.status_code)
             except httpx.TimeoutException as e:
                 logger.warning(e)
-            pass
-        raise Exception(
-            "HTTP Failed",
-        )  # TODO: Check if hitting this exception causes asyncio.wait to continue
+                raise asyncio.TimeoutError
 
 
 async def setup(bot: PiBot):
