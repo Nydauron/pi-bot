@@ -130,70 +130,19 @@ class SiteStatus(commands.Cog, name="SiteStatus"):
         EMBED_FIELD_LENGTH = 24
 
         def construct_status_field(embed: Embed, domain: str):
-            CIRCLE_INTERVAL = lookback_range / EMBED_FIELD_LENGTH
-            status_string = ""
-            uptime_num = 0
-            circle_datetimes = [
-                updatedAt - lookback_range + CIRCLE_INTERVAL * n
-                for n in range(1, EMBED_FIELD_LENGTH + 1)
-            ]
-            latest_uptime_status = None
+            embed_field_string = ""
             if domain in latest_results:
-                total_results = len(latest_results[domain])
-                latest_uptime_status = latest_results[domain][
-                    -1
-                ]  # FIXME: Prone to out-of-bounds err
-                for idx, circle_dt in enumerate(circle_datetimes):
-                    if len(latest_results[domain]) == 0:
-                        # Add offline circles and break
-                        status_string += STATUS_OFFLINE_SYMBOL * (
-                            EMBED_FIELD_LENGTH - idx
-                        )
-                        break
-                    oldest_statuses: list[AggregateStatus] = []
-                    while (
-                        len(latest_results[domain]) > 0
-                        and latest_results[domain][0].recordedAt <= circle_dt
-                    ):
-                        oldest_statuses.append(latest_results[domain].pop(0))
-
-                    if len(oldest_statuses) == 0:
-                        status_string += STATUS_OFFLINE_SYMBOL
-                        continue
-
-                    # If all entries are ok, then the icon is Green
-                    # If at least one entry is minor or major outage
-                    good_status = 0
-                    bad_status = 0
-                    client_error_status = 0
-                    for status in oldest_statuses:
-                        result = SiteStatus.uptime_status(status)
-                        match result:
-                            case "good":
-                                good_status += 1
-                            case "bad":
-                                bad_status += 1
-                            case "client_error":
-                                client_error_status += 1
-
-                    uptime_num += good_status
-                    if bad_status == 0 and good_status == 0 and client_error_status > 0:
-                        status_string += STATUS_WARN_SYMBOL
-                        continue
-                    if bad_status == 0 and good_status > 0:
-                        status_string += STATUS_GOOD_SYMBOL
-                        continue
-                    if good_status > bad_status:
-                        status_string += STATUS_MINOR_OUTAGE_SYMBOL
-                        continue
-                    if bad_status >= good_status:
-                        status_string += STATUS_MAJOR_OUTAGE_SYMBOL
-                        continue
-
-            if len(status_string) < EMBED_FIELD_LENGTH:
-                status_string = (
-                    STATUS_OFFLINE_SYMBOL * (EMBED_FIELD_LENGTH - len(status_string))
-                ) + status_string
+                (
+                    embed_field_string,
+                    _,
+                    uptime_ratio,
+                    latest_uptime_status,
+                ) = SiteStatus.construct_uptime_string(
+                    latest_results[domain],
+                    updatedAt,
+                    lookback_range,
+                    EMBED_FIELD_LENGTH,
+                )
 
             latest_result_str = STATUS_OFFLINE_SYMBOL
             if latest_uptime_status:
@@ -203,12 +152,12 @@ class SiteStatus(commands.Cog, name="SiteStatus"):
                     int(latest_uptime_status.recordedAt.timestamp()),
                 )
             embed.add_field(
-                name="{} - {} - Uptime: {:.1f}%".format(
+                name="{} - {} - Uptime: {}".format(
                     domain,
                     latest_result_str,
-                    uptime_num / total_results * 100,
+                    f"{uptime_ratio * 100:.1f}%" if uptime_ratio else "Unknown",
                 ),
-                value=f"{status_string}\n",
+                value=f"{embed_field_string}\n",
                 inline=False,
             )
 
@@ -240,6 +189,73 @@ class SiteStatus(commands.Cog, name="SiteStatus"):
         )
         status_embed.timestamp = updatedAt
         await interaction.response.send_message(embed=status_embed)
+
+    @classmethod
+    def construct_uptime_string(
+        cls,
+        polling_results: list[AggregateStatus],
+        updatedAt: datetime,
+        lookback_range: timedelta,
+        embed_field_length: int,
+    ) -> tuple[str, timedelta, float | None, AggregateStatus | None]:
+        uptime_string = ""
+        uptime_count = 0
+        CIRCLE_INTERVAL = lookback_range / embed_field_length
+        circle_datetimes = [
+            updatedAt - lookback_range + CIRCLE_INTERVAL * n
+            for n in range(1, embed_field_length + 1)
+        ]
+        total_results = len(polling_results)
+        latest_uptime_status = polling_results[-1] if total_results > 0 else None
+        for idx, circle_dt in enumerate(circle_datetimes):
+            if len(polling_results) == 0:
+                # Add offline circles and break
+                uptime_string += STATUS_OFFLINE_SYMBOL * (embed_field_length - idx)
+                break
+            oldest_statuses: list[AggregateStatus] = []
+            while (
+                len(polling_results) > 0 and polling_results[0].recordedAt <= circle_dt
+            ):
+                oldest_statuses.append(polling_results.pop(0))
+
+            if len(oldest_statuses) == 0:
+                uptime_string += STATUS_OFFLINE_SYMBOL
+                continue
+
+            # If all entries are ok, then the icon is Green
+            # If at least one entry is minor or major outage
+            good_status = 0
+            bad_status = 0
+            client_error_status = 0
+            for status in oldest_statuses:
+                result = SiteStatus.uptime_status(status)
+                match result:
+                    case "good":
+                        good_status += 1
+                    case "bad":
+                        bad_status += 1
+                    case "client_error":
+                        client_error_status += 1
+
+            uptime_count += good_status
+            if bad_status == 0 and good_status == 0 and client_error_status > 0:
+                uptime_string += STATUS_WARN_SYMBOL
+                continue
+            if bad_status == 0 and good_status > 0:
+                uptime_string += STATUS_GOOD_SYMBOL
+                continue
+            if good_status > bad_status:
+                uptime_string += STATUS_MINOR_OUTAGE_SYMBOL
+                continue
+            if bad_status >= good_status:
+                uptime_string += STATUS_MAJOR_OUTAGE_SYMBOL
+                continue
+        return (
+            uptime_string,
+            CIRCLE_INTERVAL,
+            uptime_count / total_results if total_results > 0 else None,
+            latest_uptime_status,
+        )
 
     @classmethod
     def uptime_status(cls, uptime_report: AggregateStatus) -> UptimeResult:
