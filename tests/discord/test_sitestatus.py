@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from src.discord.sitestatus import (
     STATUS_GOOD_SYMBOL,
     STATUS_MAJOR_OUTAGE_SYMBOL,
+    STATUS_MINOR_OUTAGE_SYMBOL,
     STATUS_OFFLINE_SYMBOL,
     SiteStatus,
 )
@@ -240,7 +241,7 @@ class SiteStatusTest(unittest.TestCase):
         )
         self.assertEqual(last_element, None)
 
-    def test_small_anomaly(self):
+    def test_small_range_anomaly(self):
         domain_uptime_results: list[AggregateStatus] = [
             AggregateStatus(
                 ping=30.2,
@@ -327,6 +328,193 @@ class SiteStatusTest(unittest.TestCase):
         )
         self.assertEqual(
             uptime_percent,
-            0.5,
+            2 / 4,
+        )
+        self.assertEqual(last_element, expected_last_element)
+
+    def test_major_and_minor_anomaly(self):
+        domain_uptime_results: list[AggregateStatus] = [
+            AggregateStatus(
+                ping=35.7,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=503),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=6,
+                    minute=10,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=31.4,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=6,
+                    minute=20,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=26.8,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=503),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=6,
+                    minute=30,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=36.1,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=6,
+                    minute=40,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=39.8,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=6,
+                    minute=50,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=27.3,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=0,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=31.2,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=10,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=34.4,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=20,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=35.2,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=30,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=None,
+                http=None,
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=40,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=41.2,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=7,
+                    minute=50,
+                    second=0,
+                ),
+            ),
+            AggregateStatus(
+                ping=31.0,
+                http=SiteHTTPResult(url="www.scioly.org/forums", status_code=200),
+                recordedAt=datetime(
+                    year=2024,
+                    month=2,
+                    day=1,
+                    hour=8,
+                    minute=0,
+                    second=0,
+                ),
+            ),
+        ]
+
+        domain_uptime_results.sort(key=SiteStatusTest.key_sort)
+
+        EMBED_LENGTH = 4
+        LOOKBACK_LENGTH = 120
+        expected_last_element = domain_uptime_results[-1]
+        (
+            embed_string,
+            circle_interval,
+            uptime_percent,
+            last_element,
+        ) = SiteStatus.construct_uptime_string(
+            domain_uptime_results,
+            datetime(
+                year=2024,
+                month=2,
+                day=1,
+                hour=8,
+                minute=4,
+                second=12,
+            ),
+            lookback_range=timedelta(
+                minutes=LOOKBACK_LENGTH,
+            ),
+            embed_field_length=EMBED_LENGTH,
+        )
+        self.assertEqual(
+            embed_string,
+            f"{STATUS_MAJOR_OUTAGE_SYMBOL}{STATUS_GOOD_SYMBOL * 2}{STATUS_MINOR_OUTAGE_SYMBOL}",
+        )
+        self.assertEqual(
+            circle_interval,
+            timedelta(minutes=LOOKBACK_LENGTH / EMBED_LENGTH),
+        )
+        self.assertEqual(
+            uptime_percent,
+            9 / 12,
         )
         self.assertEqual(last_element, expected_last_element)
