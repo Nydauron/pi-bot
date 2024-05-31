@@ -2,6 +2,7 @@
 Holds global variables shared between cogs and variables that are initialized when
 the bot is first setup.
 """
+from src.mongo.models import Censor
 
 ##############
 # CONSTANTS
@@ -120,7 +121,9 @@ DISCORD_AUTOCOMPLETE_MAX_ENTRIES = 25
 # VARIABLES
 ##############
 fish_now = 0
-CENSOR = {}
+CENSOR: Censor = {}
+# FIXME: CENSOR for now has to be a dummy value since Beanie does
+# not get initialized at the global scope before importing globals.py
 EVENT_INFO = []
 PING_INFO = []
 INVITATIONAL_INFO = []

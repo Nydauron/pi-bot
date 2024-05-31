@@ -95,12 +95,6 @@ class MongoDatabase:
         """
         return await self.get_entire_collection("data", "cron")
 
-    async def get_censor(self):
-        """
-        Gets the document containing censor information from the censor collection.
-        """
-        return await self.get_entire_collection("data", "censor", return_one=True)
-
     async def get_pings(self):
         """
         Gets all documents in the pings collection.
