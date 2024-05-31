@@ -1281,13 +1281,13 @@ class MemberCommands(commands.Cog):
         member_role = discord.utils.get(member.guild.roles, name=ROLE_MR)
 
         for t in src.discord.globals.TAGS:
-            if t["name"] == tag_name:
+            if t.name == tag_name:
                 if (
                     staff
-                    or (t["permissions"]["launch_helpers"] and lh_role in member.roles)
-                    or (t["permissions"]["members"] and member_role in member.roles)
+                    or (t.permissions.launch_helpers and lh_role in member.roles)
+                    or (t.permissions.members and member_role in member.roles)
                 ):
-                    return await interaction.response.send_message(content=t["output"])
+                    return await interaction.response.send_message(content=t.output)
                 else:
                     return await interaction.response.send_message(
                         content="Unfortunately, you do not have the permissions for this tag.",
@@ -1325,10 +1325,10 @@ class MemberCommands(commands.Cog):
 
         # Send the tags
         tags: list[str] = [
-            t["name"]
+            t.name
             for t in src.discord.globals.TAGS
-            if (t["permissions"]["staff"] and is_staff)
-            or (t["permissions"]["members"] and is_member)
+            if (t.permissions.staff and is_staff)
+            or (t.permissions.members and is_member)
         ]
         return [
             app_commands.Choice(name=t, value=t)
