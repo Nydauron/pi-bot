@@ -4,15 +4,17 @@ import datetime
 import logging
 import random
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import discord
+from beanie.odm.operators.update.general import Set
 from discord.ext import commands, tasks
 
 import src.discord.globals
 from env import env
 from src.discord.invitationals import update_invitational_list
 from src.discord.views import UnselfmuteView
+from src.mongo.models import Settings
 
 if TYPE_CHECKING:
     from bot import PiBot
@@ -78,8 +80,27 @@ class CronTasks(commands.Cog):
         src.discord.globals.PING_INFO = await self.bot.mongo_database.get_pings()
         src.discord.globals.TAGS = await self.bot.mongo_database.get_tags()
         src.discord.globals.EVENT_INFO = await self.bot.mongo_database.get_events()
-        self.bot.settings = await self.bot.mongo_database.get_settings()
-        assert isinstance(self.bot.settings, dict)
+        settings = await Settings.find_one({})
+
+        if not settings:
+            logger.warn(
+                "Settings were not found in database. Going to prompt user for info to construct a minimal config ...",
+            )
+            while True:
+                try:
+                    season_str = input("Please enter the year for the current season: ")
+                    season = int(season_str)
+                    break
+                except ValueError:
+                    print(f"{season_str} is not a valid year!")
+                    pass
+            settings = Settings(
+                custom_bot_status_type=None,
+                custom_bot_status_text=None,
+                invitational_season=season,
+            )
+
+        self.bot.settings = settings
 
         src.discord.globals.CENSOR = await self.bot.mongo_database.get_censor()
         logger.info("Fetched previous variables.")
@@ -140,17 +161,6 @@ class CronTasks(commands.Cog):
         """
         item_dict = {"type": "REMOVE_STATUS", "time": time}
         await self.add_to_cron(item_dict)
-
-    async def update_setting(self, setting_name: str, value: Any) -> None:
-        """
-        Updates the value of a setting.
-        """
-        await self.bot.mongo_database.update(
-            "data",
-            "settings",
-            self.bot.settings["_id"],
-            {"$set": {setting_name: value}},
-        )
 
     @tasks.loop(minutes=5)
     async def update_member_count(self):
@@ -319,14 +329,14 @@ class CronTasks(commands.Cog):
         Handles serving CRON tasks with the type of 'REMOVE_STATUS'.
         """
         # Attempt to remove status
-        self.bot.settings["custom_bot_status_type"] = None  # reset local settings
-        self.bot.settings["custom_bot_status_text"] = None  # reset local settings
-        await self.bot.mongo_database.update(
-            "data",
-            "settings",
-            self.bot.settings["_id"],
-            {"$set": {"custom_bot_status_type": None, "custom_bot_status_text": None}},
-        )  # update cloud settings
+        await self.bot.settings.update(
+            Set(
+                {
+                    Settings.custom_bot_status_type: None,
+                    Settings.custom_bot_status_text: None,
+                },
+            ),
+        )
         self.change_bot_status.restart()  # update bot now
 
         # Remove cron task.
