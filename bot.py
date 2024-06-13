@@ -13,7 +13,7 @@ import re
 import subprocess
 import traceback
 import uuid
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import discord
@@ -31,6 +31,7 @@ from src.discord.globals import (
     CHANNEL_RULES,
 )
 from src.discord.reporter import Reporter
+from src.mongo.models import Settings
 from src.mongo.mongo import MongoDatabase
 
 if TYPE_CHECKING:
@@ -135,12 +136,7 @@ class PiBot(commands.Bot):
 
     session: aiohttp.ClientSession | None
     mongo_database: MongoDatabase
-    settings: ClassVar[dict[str, str | int | None]] = {
-        "_id": None,
-        "custom_bot_status_type": None,
-        "custom_bot_status_text": None,
-        "invitational_season": None,
-    }
+    settings: Settings
 
     def __init__(self):
         super().__init__(
@@ -177,6 +173,7 @@ class PiBot(commands.Bot):
         await init_beanie(
             database=self.mongo_database.client["data"],
             document_models=[
+                Settings,
                 # TODO
             ],
         )
@@ -205,16 +202,6 @@ class PiBot(commands.Bot):
             except commands.ExtensionError:
                 logger.error(f"Failed to load extension {extension}!")
                 traceback.print_exc()
-
-    async def update_setting(self, values: dict[str, Any]):
-        for k, v in values.items():
-            self.settings[k] = v
-            await self.mongo_database.update(
-                "data",
-                "settings",
-                self.settings["_id"],
-                {"$set": values},
-            )
 
     async def on_ready(self) -> None:
         """
