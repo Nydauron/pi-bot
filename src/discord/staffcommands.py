@@ -39,6 +39,7 @@ from src.discord.globals import (
     ROLE_WM,
 )
 from src.discord.invitationals import update_invitational_list
+from src.mongo.models import Ping
 from src.wiki.mosteditstable import run_table
 
 if TYPE_CHECKING:
@@ -1369,7 +1370,7 @@ class StaffNonessential(StaffCommands, name="StaffNonesntl"):
             await interaction.edit_original_response(
                 content=f"{EMOJI_LOADING} Updating all users' pings.",
             )
-            src.discord.globals.PING_INFO = await self.bot.mongo_database.get_pings()
+            src.discord.globals.PING_INFO = Ping.find_all().to_list()
             await interaction.edit_original_response(
                 content=":white_check_mark: Updated all users' pings.",
             )
