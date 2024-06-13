@@ -83,18 +83,6 @@ class MongoDatabase:
             result.append(doc)
         return result
 
-    async def get_invitationals(self):
-        """
-        Gets all documents in the invitationals collection.
-        """
-        return await self.get_entire_collection("data", "invitationals")
-
-    async def get_cron(self):
-        """
-        Gets all documents in the CRON collection.
-        """
-        return await self.get_entire_collection("data", "cron")
-
     async def get_censor(self):
         """
         Gets the document containing censor information from the censor collection.
