@@ -2,6 +2,7 @@
 Holds global variables shared between cogs and variables that are initialized when
 the bot is first setup.
 """
+from src.mongo.models import Event
 
 ##############
 # CONSTANTS
@@ -121,7 +122,7 @@ DISCORD_AUTOCOMPLETE_MAX_ENTRIES = 25
 ##############
 fish_now = 0
 CENSOR = {}
-EVENT_INFO = []
+EVENT_INFO: list[Event] = []
 PING_INFO = []
 INVITATIONAL_INFO = []
 REPORTS = []

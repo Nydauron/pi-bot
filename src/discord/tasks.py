@@ -13,6 +13,7 @@ import src.discord.globals
 from env import env
 from src.discord.invitationals import update_invitational_list
 from src.discord.views import UnselfmuteView
+from src.mongo.models import Event
 
 if TYPE_CHECKING:
     from bot import PiBot
@@ -77,7 +78,7 @@ class CronTasks(commands.Cog):
         src.discord.globals.REPORTS = await self.bot.mongo_database.get_reports()
         src.discord.globals.PING_INFO = await self.bot.mongo_database.get_pings()
         src.discord.globals.TAGS = await self.bot.mongo_database.get_tags()
-        src.discord.globals.EVENT_INFO = await self.bot.mongo_database.get_events()
+        src.discord.globals.EVENT_INFO = await Event.find_all().to_list()
         self.bot.settings = await self.bot.mongo_database.get_settings()
         assert isinstance(self.bot.settings, dict)
 
