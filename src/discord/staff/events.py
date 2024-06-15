@@ -110,33 +110,38 @@ class StaffEvents(commands.Cog):
         )
 
         # Check to make sure event has previously been added
-        event_not_in_list = event_name not in [
-            e.name for e in src.discord.globals.EVENT_INFO
-        ]
+        event = next(
+            (e for e in src.discord.globals.EVENT_INFO if e.name == event_name),
+            None,
+        )
 
         # Check to see if role exists on server
         server = self.bot.get_guild(env.server_id)
         potential_role = discord.utils.get(server.roles, name=event_name)
 
-        if event_not_in_list and potential_role:
+        # If staff member has selected to delete role from all users, delete role entirely
+        if potential_role:
+            if delete_role == "yes":
+                server = self.bot.get_guild(env.server_id)
+                await potential_role.delete()
+                if not event:
+                    return await interaction.edit_original_response(
+                        content=f"The `{event_name}` role was completely deleted from the server. All members with the role no longer have it.",
+                    )
+            elif delete_role == "no" and not event:
+                return await interaction.edit_original_response(
+                    content=f"The `{event_name}` event was previously deleted partially. There still "
+                    "exists a role for the event.\n\nTo delete the role entirely, re-run the command "
+                    "with `delete_role = yes`.",
+                )
+
+        if not event:
             # If no event in list and no role exists on server
             return await interaction.edit_original_response(
                 content=f"The `{event_name}` event does not exist.",
             )
 
-        # If staff member has selected to delete role from all users, delete role entirely
-        if delete_role == "yes":
-            server = self.bot.get_guild(env.server_id)
-            role = discord.utils.get(server.roles, name=event_name)
-            assert isinstance(role, discord.Role)
-            await role.delete()
-            if event_not_in_list:
-                return await interaction.edit_original_response(
-                    content=f"The `{event_name}` role was completely deleted from the server. All members with the role no longer have it.",
-                )
-
         # Complete operation of removing event
-        event = next(e for e in src.discord.globals.EVENT_INFO if e.name == event_name)
         await event.delete()
         src.discord.globals.EVENT_INFO.remove(event)
 
@@ -144,13 +149,13 @@ class StaffEvents(commands.Cog):
         if delete_role == "yes":
             await interaction.edit_original_response(
                 content=f"The `{event_name}` event was deleted entirely. The role has been removed from all users, "
-                f"and can not be added to new users. ",
+                f"and can not be added to new users.",
             )
         else:
             await interaction.edit_original_response(
                 content=f"The `{event_name}` event was deleted partially. Users who have the role currently will keep "
                 f"it, but new members can not access the role.\n\nTo delete the role entirely, re-run the "
-                f"command with `delete_role = yes`. ",
+                f"command with `delete_role = yes`.",
             )
 
 
