@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import datetime
-import re
 from typing import TYPE_CHECKING, Literal
 
 import discord
+import re2
 from discord import app_commands
 from discord.ext import commands
 
@@ -578,7 +578,7 @@ class StaffInvitational(commands.Cog):
                 await r.delete()
 
             # Delete the invitational emoji
-            search = re.findall(r"<:.*:\d+>", invitational["emoji"])
+            search = re2.findall(r"<:.*:\d+>", invitational["emoji"])
             if len(search):
                 emoji = self.bot.get_emoji(search[0])
                 if emoji:

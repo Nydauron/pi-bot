@@ -9,10 +9,10 @@ import collections
 import contextlib
 import datetime
 import logging
-import re
 from typing import TYPE_CHECKING
 
 import discord
+import re2
 from discord import app_commands
 from discord.ext import commands
 
@@ -91,7 +91,9 @@ class PingManager(commands.GroupCog, name="ping"):
             pings = [rf"\b({ping})\b" for ping in user["word_pings"]]
             for ping in pings:
                 try:
-                    if len(re.findall(ping, message.content, re.I)):
+                    flags = re2.Options()
+                    flags.case_sensitive = False
+                    if len(re2.findall(ping, message.content, flags)):
                         ping_count += 1
                 except Exception as e:
                     logger.error(
@@ -133,7 +135,9 @@ class PingManager(commands.GroupCog, name="ping"):
 
         for expression in pings:
             try:
-                text = re.sub(rf"{expression}", r"**\1**", text, flags=re.I)
+                flags = re2.Options()
+                flags.case_sensitive = False
+                text = re2.sub(rf"{expression}", r"**\1**", text, options=flags)
             except Exception as e:
                 logger.warn(f"Could not bold ping due to unfavored RegEx. Error: {e}")
 
@@ -284,7 +288,9 @@ class PingManager(commands.GroupCog, name="ping"):
             )
             pings = user["word_pings"]
             try:
-                re.findall(word, "test phrase")
+                flags = re2.Options()
+                flags.case_sensitive = False
+                re2.compile(word, flags)
             except Exception:
                 return await interaction.response.send_message(
                     f"Ignoring adding the `{word}` ping because it uses illegal characters.",
@@ -294,7 +300,7 @@ class PingManager(commands.GroupCog, name="ping"):
                     f"Ignoring adding the `{word}` ping because you already have a ping currently set as that.",
                 )
             else:
-                logger.debug(f"adding word: {re.escape(word)}")
+                logger.debug(f"adding word: {re2.escape(word)}")
                 relevant_doc = next(
                     doc
                     for doc in src.discord.globals.PING_INFO
@@ -362,12 +368,14 @@ class PingManager(commands.GroupCog, name="ping"):
         response = ""
 
         for ping in user_pings:
+            flags = re2.Options()
+            flags.case_sensitive = False
             if isinstance(ping, dict):
-                if len(re.findall(ping["new"], test, re.I)) > 0:
+                if len(re2.findall(ping["new"], test, flags)) > 0:
                     response += f"Your ping `{ping['original']}` matches `{test}`.\n"
                     matched = True
             else:
-                if len(re.findall(ping, test, re.I)) > 0:
+                if len(re2.findall(ping, test, flags)) > 0:
                     response += f"Your ping `{ping}` matches `{test}`.\n"
                     matched = True
 

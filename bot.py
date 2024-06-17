@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import logging
 import logging.handlers
-import re
 import subprocess
 import traceback
 import uuid
@@ -17,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 import discord
+import re2
 from discord import app_commands
 from discord.ext import commands
 from rich.logging import RichHandler
@@ -281,7 +281,7 @@ class PiBot(commands.Bot):
             spam: commands.Cog | SpamManager = self.get_cog("SpamManager")
             await spam.store_and_validate(message)
 
-        if message.content and len(re.findall(r"^[!\?]\s*\w+$", message.content)):
+        if message.content and len(re2.findall(r"^[!\?]\s*\w+$", message.content)):
             botspam_channel = discord.utils.get(
                 message.guild.channels,
                 name=CHANNEL_BOTSPAM,
